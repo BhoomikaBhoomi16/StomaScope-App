@@ -4,62 +4,79 @@ import numpy as np
 from PIL import Image
 import cv2
 import json
-import sqlite3
 from datetime import datetime
-import os
 
-# ==================== PAGE CONFIG ====================
-st.set_page_config(page_title="StomaScope", page_icon="🌿", layout="wide")
+# Page Configuration
+st.set_page_config(
+    page_title="StomaScope - AI Crop Doctor",
+    page_icon="🌿",
+    layout="wide"
+)
 
-# Custom CSS
+# Modern Green Theme CSS
 st.markdown("""
 <style>
-    .main {background: linear-gradient(135deg, #f0f7f0, #e8f5e9);}
-    h1 {color: #1b5e20; text-align: center;}
-    .card {background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);}
+    .main {
+        background: linear-gradient(135deg, #0f5132 0%, #1e7d44 100%);
+    }
+    .stApp h1 {
+        color: #ffffff;
+        font-size: 3.8rem;
+        text-align: center;
+        text-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        margin-bottom: 0.5rem;
+    }
+    .subtitle {
+        color: #a5d6a7;
+        text-align: center;
+        font-size: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+    .card {
+        background: rgba(255,255,255,0.95);
+        color: #1b5e20;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        margin: 15px 0;
+    }
+    .prediction-card {
+        background: linear-gradient(90deg, #4caf50, #66bb6a);
+        color: white;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+    }
+    .stButton>button {
+        background: #ffffff;
+        color: #1b5e20;
+        border-radius: 12px;
+        height: 50px;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== DATABASE SETUP ====================
-def init_db():
-    conn = sqlite3.connect('history.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS detections
-                 (id INTEGER PRIMARY KEY, username TEXT, image_name TEXT, disease TEXT, 
-                  confidence REAL, date TEXT)''')
-    conn.commit()
-    conn.close()
+# Header
+st.markdown("<h1>🌿 StomaScope</h1>", unsafe_allow_html=True)
+st.markdown('<p class="subtitle">AI-Powered Crop Disease Detection with Explainable Insights</p>', unsafe_allow_html=True)
 
-init_db()
+# Sidebar
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/000000/plant.png", width=80)
+    st.title("StomaScope")
+    st.write("Smart AI Assistant for Farmers")
+    st.markdown("---")
+    st.write("**Features**")
+    st.write("• Accurate Disease Prediction")
+    st.write("• Visual AI Explanation")
+    st.write("• Cause Analysis")
+    st.write("• Treatment Recommendations")
+    st.markdown("---")
+    st.write("Made for Farmers")
+    st.write(f"Date: {datetime.now().strftime('%d %B %Y')}")
 
-# ==================== LOGIN SYSTEM ====================
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = ""
-
-def login():
-    st.title("🌿 StomaScope - Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    
-    if st.button("Login"):
-        # Simple demo login (you can make it more secure later)
-        if username and password:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.success(f"Welcome, {username}!")
-            st.rerun()
-        else:
-            st.error("Please enter username and password")
-
-if not st.session_state.logged_in:
-    login()
-    st.stop()
-
-# ==================== MAIN APP ====================
-st.title(f"🌿 Welcome back, {st.session_state.username}!")
-
-# Load model
+# Load Model
 @st.cache_resource
 def load_resources():
     model = tf.keras.models.load_model('stomascopes_model_v1.keras')
@@ -69,7 +86,7 @@ def load_resources():
 
 model, class_names = load_resources()
 
-# Grad-CAM function (fixed version)
+# Grad-CAM Function
 def get_gradcam(img_array, model):
     base = model.layers[1]
     with tf.GradientTape() as tape:
@@ -87,8 +104,13 @@ def get_gradcam(img_array, model):
     heatmap /= tf.reduce_max(heatmap) + 1e-8
     return heatmap.numpy(), int(pred_index)
 
-# Upload
-uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg", "jpeg", "png"])
+# Upload Section
+st.markdown("### 📸 Upload Leaf Image")
+
+uploaded_file = st.file_uploader(
+    "Drag & drop or browse a clear photo of the affected leaf",
+    type=["jpg", "jpeg", "png"]
+)
 
 if uploaded_file is not None:
     img = Image.open(uploaded_file).resize((224, 224))
@@ -100,35 +122,43 @@ if uploaded_file is not None:
     confidence = preds[0][pred_idx] * 100
     pred_class = class_names[pred_idx]
 
-    # Save to history
-    conn = sqlite3.connect('history.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO detections (username, image_name, disease, confidence, date) VALUES (?, ?, ?, ?, ?)",
-              (st.session_state.username, uploaded_file.name, pred_class, confidence, datetime.now().strftime("%Y-%m-%d %H:%M")))
-    conn.commit()
-    conn.close()
+    # Prediction Card
+    st.markdown(f"""
+    <div class="prediction-card">
+        <h2>Predicted Disease</h2>
+        <h1 style="margin:10px 0; color:white;">{pred_class.replace('_', ' ')}</h1>
+        <h3>Confidence: {confidence:.2f}%</h3>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.success(f"**Predicted Disease:** {pred_class.replace('_', ' ')}")
-    st.write(f"**Confidence:** {confidence:.2f}%")
+    # Cause & Treatment in Cards
+    col_cause, col_treat = st.columns(2)
 
-    # Cause & Treatment
-    disease_info = {
-        "Tomato___Late_blight": {"cause": "Fungal infection by Phytophthora infestans.", "treatment": "Mancozeb or Chlorothalonil fungicide."},
-        "Potato___Late_blight": {"cause": "Phytophthora infestans fungus.", "treatment": "Metalaxyl or Mancozeb fungicides."},
-        "Potato___healthy": {"cause": "No disease detected.", "treatment": "Maintain good practices."},
-        "Tomato___healthy": {"cause": "No disease detected.", "treatment": "Continue good practices."}
-    }
+    with col_cause:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("**🔬 Cause of Disease**")
+        if "Late_blight" in pred_class:
+            st.write("Fungal infection by *Phytophthora infestans*. Spreads rapidly in cool, wet weather.")
+        elif "healthy" in pred_class.lower():
+            st.write("No disease detected. The leaf appears healthy.")
+        else:
+            st.write("Common fungal or bacterial infection in this crop.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if pred_class in disease_info:
-        info = disease_info[pred_class]
-        col1, col2 = st.columns(2)
-        with col1:
-            st.info(f"**Cause:** {info['cause']}")
-        with col2:
-            st.success(f"**Recommended Treatment:** {info['treatment']}")
+    with col_treat:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("**🧪 Recommended Treatment**")
+        if "Late_blight" in pred_class:
+            st.write("Apply Mancozeb, Chlorothalonil or Ridomil Gold. Remove infected leaves immediately.")
+        elif "healthy" in pred_class.lower():
+            st.write("Maintain good irrigation, fertilization and crop rotation.")
+        else:
+            st.write("Use appropriate fungicide and improve air circulation.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Grad-CAM
-    with st.spinner("Generating Grad-CAM..."):
+    # Grad-CAM Section
+    st.markdown("### 🔍 AI Model Explanation (Grad-CAM)")
+    with st.spinner("Generating visual explanation..."):
         heatmap, _ = get_gradcam(img_array, model)
         original = (img_array[0] * 255).astype(np.uint8)
         h = cv2.resize(heatmap, (224, 224))
@@ -139,27 +169,25 @@ if uploaded_file is not None:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.image(original, caption="Original Image", width=400)
+        st.image(original, caption="Original Image", use_column_width=True)
     with col2:
-        st.image(overlay, caption="Grad-CAM (Red = High Attention)", width=400)
+        st.image(overlay, caption="Grad-CAM: Areas the AI focused on (Red = High Attention)", use_column_width=True)
 
-# ==================== HISTORY SECTION ====================
-st.markdown("### 📜 Previous Detections")
+    st.caption("Red and yellow regions show where the model paid most attention while making its prediction.")
 
-conn = sqlite3.connect('history.db')
-c = conn.cursor()
-c.execute("SELECT date, disease, confidence FROM detections WHERE username = ? ORDER BY date DESC", 
-          (st.session_state.username,))
-history = c.fetchall()
-conn.close()
-
-if history:
-    for entry in history:
-        st.write(f"**{entry[0]}** - {entry[1]} ({entry[2]:.2f}%)")
 else:
-    st.info("No previous detections yet.")
+    st.markdown("""
+    <div style="text-align:center; padding:120px 20px; color:#a5d6a7;">
+        <h2>Upload a clear leaf image to start diagnosis</h2>
+        <p>Supported formats: JPG, JPEG, PNG</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Logout button
-if st.button("Logout"):
-    st.session_state.logged_in = False
-    st.rerun()
+# Footer
+st.markdown("---")
+st.markdown(
+    "<p style='text-align:center; color:#a5d6a7; font-size:1.1rem;'>"
+    "Made with ❤️ for Farmers | AI-Powered Crop Health Monitoring"
+    "</p>",
+    unsafe_allow_html=True
+)
