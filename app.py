@@ -4,67 +4,30 @@ import numpy as np
 from PIL import Image
 import cv2
 import json
-from datetime import datetime
 
-# Page Configuration
-st.set_page_config(
-    page_title="StomaScope - Plant Disease Detection",
-    page_icon="🌱",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="StomaScope", page_icon="🌿", layout="wide")
 
 # Modern CSS
 st.markdown("""
 <style>
-    .main {
-        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://source.unsplash.com/1600x900/?nature,plants');
-        background-size: cover;
-        background-position: center;
-        color: white;
-    }
-    .header {
-        text-align: center;
-        padding: 80px 20px 40px;
-        background: rgba(0,0,0,0.5);
-        border-radius: 15px;
-        margin-bottom: 30px;
-    }
-    h1 {
-        font-size: 3.5rem;
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 10px rgba(0,0,0,0.6);
-    }
-    .subtitle {
-        font-size: 1.4rem;
-        color: #a5d6a7;
-    }
-    .card {
+    .main {background: linear-gradient(135deg, #f0f7f0, #e8f5e9);}
+    h1 {color: #1b5e20; text-align: center; font-size: 3rem;}
+    .section-title {color: #2e7d32; font-size: 1.8rem; margin: 30px 0 15px;}
+    .result-box {
         background: white;
-        color: #1b5e20;
+        padding: 20px;
         border-radius: 15px;
-        padding: 25px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        margin: 15px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
     }
-    .result-card {
-        background: linear-gradient(90deg, #4caf50, #81c784);
-        color: white;
-        padding: 30px;
-        border-radius: 15px;
-        text-align: center;
-    }
+    .prediction-box {border-left: 6px solid #4caf50;}
+    .cause-box {border-left: 6px solid #ff9800;}
+    .treatment-box {border-left: 6px solid #2196f3;}
 </style>
 """, unsafe_allow_html=True)
 
-# Header (similar to your image)
-st.markdown("""
-<div class="header">
-    <h1>🌿 StomaScope</h1>
-    <p class="subtitle">AI-Powered Plant Disease Detection System</p>
-    <p>Early detection • Visual explanation • Smart recommendations for farmers</p>
-</div>
-""", unsafe_allow_html=True)
+st.title("🌿 StomaScope")
+st.markdown("**AI-Powered Crop Disease Detection System**")
 
 # Load model
 @st.cache_resource
@@ -76,7 +39,7 @@ def load_resources():
 
 model, class_names = load_resources()
 
-# Grad-CAM function
+# Grad-CAM
 def get_gradcam(img_array, model):
     base = model.layers[1]
     with tf.GradientTape() as tape:
@@ -94,66 +57,57 @@ def get_gradcam(img_array, model):
     heatmap /= tf.reduce_max(heatmap) + 1e-8
     return heatmap.numpy(), int(pred_index)
 
-# Main Upload Section
-st.markdown("### 📸 Upload a Leaf Image for Analysis")
+# Main Content
+st.markdown("### Upload Leaf Image")
 
-uploaded_file = st.file_uploader(
-    "Choose a clear photo of the affected leaf",
-    type=["jpg", "jpeg", "png"],
-    help="For best results, use well-lit, close-up images"
-)
+uploaded_file = st.file_uploader("Choose a clear photo of the affected leaf", 
+                               type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     img = Image.open(uploaded_file).resize((224, 224))
     img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
+    # Prediction
     preds = model(img_array, training=False)
     pred_idx = np.argmax(preds[0])
     confidence = preds[0][pred_idx] * 100
     pred_class = class_names[pred_idx]
 
-    # Beautiful Result Card
-    st.markdown(f"""
-    <div class="result-card">
-        <h2>Predicted Disease</h2>
-        <h1 style="margin:10px 0;">{pred_class.replace('_', ' ')}</h1>
-        <h3>Confidence: {confidence:.2f}%</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    # Results in nice separate boxes
+    col1, col2, col3 = st.columns(3)
 
-    # Disease Info
-    disease_info = {
-        "Tomato___Late_blight": {
-            "cause": "Fungal infection by Phytophthora infestans. Spreads in cool, wet weather.",
-            "treatment": "Apply Mancozeb or Chlorothalonil. Remove infected leaves immediately."
-        },
-        "Potato___Late_blight": {
-            "cause": "Caused by Phytophthora infestans. Common in moist conditions.",
-            "treatment": "Use Metalaxyl or Mancozeb fungicides. Use certified seeds."
-        },
-        "Potato___healthy": {
-            "cause": "No disease detected.",
-            "treatment": "Maintain proper irrigation and fertilization."
-        },
-        "Tomato___healthy": {
-            "cause": "No disease detected.",
-            "treatment": "Continue good agricultural practices."
-        }
-    }
+    with col1:
+        st.markdown('<div class="result-box prediction-box">', unsafe_allow_html=True)
+        st.markdown("**Predicted Disease**")
+        st.markdown(f"<h2 style='color:#1b5e20;'>{pred_class.replace('_', ' ')}</h2>", unsafe_allow_html=True)
+        st.markdown(f"**Confidence:** {confidence:.2f}%")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if pred_class in disease_info:
-        info = disease_info[pred_class]
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**🔬 Cause**")
-            st.info(info["cause"])
-        with col2:
-            st.markdown("**🧪 Recommended Treatment**")
-            st.success(info["treatment"])
+    with col2:
+        st.markdown('<div class="result-box cause-box">', unsafe_allow_html=True)
+        st.markdown("**Cause**")
+        if "Late_blight" in pred_class:
+            st.write("Fungal infection by *Phytophthora infestans*. Spreads in cool, wet weather.")
+        elif "healthy" in pred_class.lower():
+            st.write("No disease detected. Leaf appears healthy.")
+        else:
+            st.write("Fungal / bacterial infection common in this crop.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Grad-CAM
-    st.markdown("### 🔍 AI Model Explanation (Grad-CAM)")
+    with col3:
+        st.markdown('<div class="result-box treatment-box">', unsafe_allow_html=True)
+        st.markdown("**Recommended Treatment**")
+        if "Late_blight" in pred_class:
+            st.write("Apply Mancozeb or Chlorothalonil. Remove infected leaves immediately.")
+        elif "healthy" in pred_class.lower():
+            st.write("Continue good agricultural practices.")
+        else:
+            st.write("Use appropriate fungicide and improve air circulation.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Grad-CAM Images
+    st.markdown("### 🔍 Model Explanation (Grad-CAM)")
     with st.spinner("Generating explanation..."):
         heatmap, _ = get_gradcam(img_array, model)
         original = (img_array[0] * 255).astype(np.uint8)
@@ -163,23 +117,15 @@ if uploaded_file is not None:
         overlay = cv2.addWeighted(original, 0.65, h_color, 0.35, 0)
         overlay = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
 
-    col_left, col_right = st.columns(2)
-    with col_left:
-        st.image(original, caption="Original Image", width=500)
-    with col_right:
-        st.image(overlay, caption="Grad-CAM: Areas the AI focused on (Red = High Attention)", width=500)
+    col_img1, col_img2 = st.columns(2)
+    with col_img1:
+        st.image(original, caption="Original Image", use_column_width=True)
+    with col_img2:
+        st.image(overlay, caption="Grad-CAM: Where the AI focused (Red = High Attention)", use_column_width=True)
 
 else:
-    st.markdown("""
-    <div style="text-align:center; padding:100px 20px; color:#ddd;">
-        <h2>Upload a clear leaf image to start diagnosis</h2>
-        <p>Supported formats: JPG, JPEG, PNG</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.info("👆 Please upload a clear leaf image to start the analysis.")
 
 # Footer
 st.markdown("---")
-st.markdown(
-    "<p style='text-align:center; color:#a5d6a7;'>Made with ❤️ for Farmers | AI-Powered Crop Health Monitoring</p>",
-    unsafe_allow_html=True
-)
+st.markdown("<p style='text-align:center; color:#666;'>Made with ❤️ for Farmers | AI-Powered Crop Disease Detection</p>", unsafe_allow_html=True)
