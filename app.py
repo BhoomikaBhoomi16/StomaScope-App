@@ -88,22 +88,37 @@ model, class_names = load_resources()
 
 # Grad-CAM Function
 def get_gradcam(img_array, model):
-    base = model.layers[1]
+    """Fixed Grad-CAM for MobileNetV2 transfer learning"""
+    # Get the base MobileNetV2 model
+    base_model = model.layers[1]
+    
     with tf.GradientTape() as tape:
-        conv_output = base(img_array)
+        # Forward pass
+        conv_output = base_model(img_array, training=False)
         tape.watch(conv_output)
-        preds = model(img_array, training=False)
+        
+        # Pass through remaining layers (GlobalAveragePooling + Dense)
+        x = tf.keras.layers.GlobalAveragePooling2D()(conv_output)
+        preds = model.layers[-1](x)   # final Dense layer
+        
+        # Get the predicted class score
         pred_index = tf.argmax(preds[0])
         class_score = preds[:, pred_index]
+
+    # Compute gradients
     grads = tape.gradient(class_score, conv_output)
+    
     if grads is None:
+        st.warning("⚠️ Could not generate Grad-CAM heatmap")
         return np.zeros((7, 7)), int(pred_index)
+    
+    # Generate heatmap
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output[0]), axis=-1)
     heatmap = tf.nn.relu(heatmap)
     heatmap /= tf.reduce_max(heatmap) + 1e-8
+    
     return heatmap.numpy(), int(pred_index)
-
 # Upload Section
 st.markdown("### 📸 Upload Leaf Image")
 
@@ -157,9 +172,11 @@ if uploaded_file is not None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Grad-CAM Section
-    st.markdown("### 🔍 AI Model Explanation (Grad-CAM)")
+       # Grad-CAM Visualization
+    st.markdown("### 🔍 Model Explanation (Grad-CAM)")
     with st.spinner("Generating visual explanation..."):
         heatmap, _ = get_gradcam(img_array, model)
+
         original = (img_array[0] * 255).astype(np.uint8)
         h = cv2.resize(heatmap, (224, 224))
         h = np.uint8(255 * h)
@@ -169,19 +186,11 @@ if uploaded_file is not None:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.image(original, caption="Original Image", use_column_width=True)
+        st.image(original, caption="Original Image", width=450)
     with col2:
-        st.image(overlay, caption="Grad-CAM: Areas the AI focused on (Red = High Attention)", use_column_width=True)
+        st.image(overlay, caption="Grad-CAM: Areas the AI focused on (Red = High Attention)", width=450)
 
     st.caption("Red and yellow regions show where the model paid most attention while making its prediction.")
-
-else:
-    st.markdown("""
-    <div style="text-align:center; padding:120px 20px; color:#a5d6a7;">
-        <h2>Upload a clear leaf image to start diagnosis</h2>
-        <p>Supported formats: JPG, JPEG, PNG</p>
-    </div>
-    """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
