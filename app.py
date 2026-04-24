@@ -245,15 +245,6 @@ def get_gradcam(img_array, model):
     # Compute gradients
     grads = tape.gradient(class_score, conv_output)
 
-    # ── Debug info shown in sidebar ──
-    with st.sidebar:
-        st.markdown("**Grad-CAM Debug**")
-        st.write("grads is None:", grads is None)
-        if grads is not None:
-            g_max = float(tf.reduce_max(tf.abs(grads)).numpy())
-            st.write(f"grad max abs: {g_max:.6f}")
-            st.write(f"conv_output shape: {conv_output.shape}")
-
     if grads is None:
         st.warning("⚠️ Could not generate Grad-CAM heatmap")
         return np.zeros((7, 7)), int(pred_index)
@@ -262,9 +253,16 @@ def get_gradcam(img_array, model):
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output[0]), axis=-1)
     heatmap = tf.nn.relu(heatmap)
-    heatmap /= tf.reduce_max(heatmap) + 1e-8
 
-    return heatmap.numpy(), int(pred_index)
+    # Robust normalisation: percentile stretch so weak activations still show
+    hmap = heatmap.numpy()
+    low  = np.percentile(hmap, 10)
+    high = np.percentile(hmap, 100)
+    if high - low < 1e-8:
+        high = hmap.max() + 1e-8
+    hmap = np.clip((hmap - low) / (high - low), 0, 1)
+
+    return hmap, int(pred_index)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -387,15 +385,21 @@ if uploaded_file is not None:
         st.markdown('<div class="sec-head">Model Explanation — Grad-CAM</div>', unsafe_allow_html=True)
 
         with st.spinner("Generating heatmap..."):
-            # ── GRAD-CAM: identical rendering to original working code ──
             heatmap, _ = get_gradcam(img_array, model)
 
-            original  = (img_array[0] * 255).astype(np.uint8)
-            h         = cv2.resize(heatmap, (224, 224))
-            h         = np.uint8(255 * h)
-            h_color   = cv2.applyColorMap(h, cv2.COLORMAP_JET)
-            overlay   = cv2.addWeighted(original, 0.65, h_color, 0.35, 0)
-            overlay   = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
+            original   = (img_array[0] * 255).astype(np.uint8)  # RGB uint8
+
+            # Resize heatmap from 7x7 → 224x224
+            h          = cv2.resize(heatmap.astype(np.float32), (224, 224))
+            h          = np.uint8(255 * h)
+
+            # applyColorMap expects and returns BGR
+            h_color    = cv2.applyColorMap(h, cv2.COLORMAP_JET)
+
+            # Convert original RGB → BGR for addWeighted, then back to RGB
+            orig_bgr   = cv2.cvtColor(original, cv2.COLOR_RGB2BGR)
+            overlay    = cv2.addWeighted(orig_bgr, 0.6, h_color, 0.4, 0)
+            overlay    = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
 
         ca, cb = st.columns(2, gap="large")
         with ca:
