@@ -335,13 +335,18 @@ def build_grad_model(_model):
     """
     Build a Grad-CAM sub-model ONCE and cache it.
     Finds the last 4-D output layer in MobileNetV2 base (the final feature map).
+    Uses try/except to safely skip layers whose output_shape is not yet available.
     """
     base_model = _model.layers[1]
     last_conv_layer = None
     for layer in reversed(base_model.layers):
-        if hasattr(layer, 'output') and len(layer.output_shape) == 4:
-            last_conv_layer = layer
-            break
+        try:
+            shape = layer.output_shape
+            if isinstance(shape, (list, tuple)) and len(shape) == 4:
+                last_conv_layer = layer
+                break
+        except AttributeError:
+            continue
     if last_conv_layer is None:
         return None
     grad_model = tf.keras.models.Model(
