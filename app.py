@@ -330,41 +330,52 @@ def load_resources():
 
 model, class_names = load_resources()
 
-def get_gradcam(img_array, model):
+def get_gradcam(img_array, model, last_conv_layer_name=None):
     """
-    Grad-CAM using persistent tape + tf.Variable to guarantee gradient flow.
-    Converting img_array to tf.Variable forces TF to track operations through it.
+    Robust Grad-CAM that works for most Keras models.
     """
-    base_model = model.layers[1]
 
-    # Convert to tf.Variable — this is the key trick that guarantees grad flow
-    img_var = tf.Variable(tf.cast(img_array, tf.float32))
+    # 1. Automatically find last Conv2D layer if not given
+    if last_conv_layer_name is None:
+        for layer in reversed(model.layers):
+            if isinstance(layer, tf.keras.layers.Conv2D):
+                last_conv_layer_name = layer.name
+                break
 
-    with tf.GradientTape(persistent=True) as tape:
-        tape.watch(img_var)
-        conv_output = base_model(img_var, training=False)
-        tape.watch(conv_output)
-        x = tf.keras.layers.GlobalAveragePooling2D()(conv_output)
-        preds = model.layers[-1](x)
-        pred_index = int(tf.argmax(preds[0]))
-        class_score = preds[:, pred_index]
+    if last_conv_layer_name is None:
+        st.error("❌ No Conv2D layer found in model.")
+        return np.zeros((224, 224)), 0
 
-    grads = tape.gradient(class_score, conv_output)
-    del tape
+    # 2. Create Grad-CAM model
+    grad_model = tf.keras.models.Model(
+        [model.inputs],
+        [model.get_layer(last_conv_layer_name).output, model.output]
+    )
+
+    # 3. Compute gradients
+    with tf.GradientTape() as tape:
+        inputs = tf.cast(img_array, tf.float32)
+        conv_outputs, predictions = grad_model(inputs)
+
+        pred_index = tf.argmax(predictions[0])
+        class_channel = predictions[:, pred_index]
+
+    grads = tape.gradient(class_channel, conv_outputs)
 
     if grads is None:
-        st.warning("⚠️ Grad-CAM: grads are None.")
-        return np.zeros((7, 7)), pred_index
+        st.error("❌ Gradients are None — check model structure.")
+        return np.zeros((224, 224)), int(pred_index)
 
+    # 4. Compute heatmap
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output[0]), axis=-1)
-    heatmap = tf.nn.relu(heatmap)
-    max_val = tf.reduce_max(heatmap)
-    if max_val == 0:
-        return np.zeros(heatmap.shape), pred_index
-    heatmap = heatmap / (max_val + 1e-8)
-    return heatmap.numpy(), pred_index
 
+    conv_outputs = conv_outputs[0]
+    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
+
+    heatmap = tf.nn.relu(heatmap)
+    heatmap /= tf.reduce_max(heatmap) + 1e-8
+
+    return heatmap.numpy(), int(pred_index)
 
 def get_severity(confidence, pred_class):
     if "healthy" in pred_class.lower(): return "LOW", "sev-low"
