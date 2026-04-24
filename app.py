@@ -322,37 +322,69 @@ st.markdown("""
 # MODEL
 # ─────────────────────────────────────────────────────────────────────────────
 @st.cache_resource
+def load_resources():
+    model = tf.keras.models.load_model('stomascopes_model_v1.keras')
+    with open('class_names.json', 'r') as f:
+        class_names = json.load(f)
+    return model, class_names
+
+model, class_names = load_resources()
+
 def get_gradcam(img_array, model):
-    """Fixed Grad-CAM for MobileNetV2 transfer learning"""
-    # Get the base MobileNetV2 model
-    base_model = model.layers[1]
-    
+    """
+    Grad-CAM for MobileNetV2 transfer learning.
+    Exact same approach as the original working code:
+    - Run base_model inside tape, watch its output tensor
+    - Manually pass through GAP + Dense inside the tape
+    - Compute gradients of class score w.r.t. conv_output
+    """
+    base_model = model.layers[1]   # MobileNetV2 base
+
     with tf.GradientTape() as tape:
-        # Forward pass
         conv_output = base_model(img_array, training=False)
         tape.watch(conv_output)
-        
-        # Pass through remaining layers (GlobalAveragePooling + Dense)
+
+        # Replicate GAP + Dense exactly as in original
         x = tf.keras.layers.GlobalAveragePooling2D()(conv_output)
         preds = model.layers[-1](x)   # final Dense layer
-        
-        # Get the predicted class score
+
         pred_index = tf.argmax(preds[0])
         class_score = preds[:, pred_index]
 
-    # Compute gradients
     grads = tape.gradient(class_score, conv_output)
-    
+
     if grads is None:
-        st.warning("⚠️ Could not generate Grad-CAM heatmap")
+        st.warning("⚠️ Grad-CAM: grads are None. Check model.layers[-1] is a Dense layer.")
         return np.zeros((7, 7)), int(pred_index)
-    
-    # Generate heatmap
+
+    # Check for zero/flat gradients
+    grad_max = tf.reduce_max(tf.abs(grads)).numpy()
+    if grad_max < 1e-10:
+        # Fallback: try every Dense layer from the end until we get non-zero grads
+        for layer_idx in range(-1, -len(model.layers)-1, -1):
+            try:
+                with tf.GradientTape() as tape2:
+                    co2 = base_model(img_array, training=False)
+                    tape2.watch(co2)
+                    x2 = tf.keras.layers.GlobalAveragePooling2D()(co2)
+                    p2 = model.layers[layer_idx](x2)
+                    ps2 = p2[:, tf.argmax(p2[0])]
+                g2 = tape2.gradient(ps2, co2)
+                if g2 is not None and tf.reduce_max(tf.abs(g2)).numpy() > 1e-10:
+                    grads = g2
+                    conv_output = co2
+                    break
+            except Exception:
+                continue
+
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output[0]), axis=-1)
     heatmap = tf.nn.relu(heatmap)
-    heatmap /= tf.reduce_max(heatmap) + 1e-8
-    
+    max_val = tf.reduce_max(heatmap)
+    if max_val == 0:
+        return np.zeros(heatmap.shape), int(pred_index)
+    heatmap /= max_val + 1e-8
+
     return heatmap.numpy(), int(pred_index)
 
 def get_severity(confidence, pred_class):
