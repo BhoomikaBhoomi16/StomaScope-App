@@ -118,6 +118,35 @@ html, body, [data-testid="stAppViewContainer"] {
 .footer { text-align:center; padding:2rem 0 1rem; color:#3a5a3a; font-size:0.75rem; letter-spacing:2px; text-transform:uppercase; }
 ::-webkit-scrollbar { width:5px; }
 ::-webkit-scrollbar-thumb { background:rgba(74,222,128,0.2); border-radius:3px; }
+
+/* Animated upload border */
+@keyframes borderPulse {
+    0%,100% { border-color: rgba(74,222,128,0.25); box-shadow: none; }
+    50%      { border-color: rgba(74,222,128,0.7);  box-shadow: 0 0 20px rgba(74,222,128,0.15); }
+}
+[data-testid="stFileUploader"] {
+    animation: borderPulse 3s ease-in-out infinite !important;
+    border-radius: 18px !important;
+}
+/* Card hover glow */
+.card { transition: all 0.25s ease; }
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(74,222,128,0.1);
+    border-color: rgba(74,222,128,0.35) !important;
+}
+/* Stat number glow */
+.stat-n { text-shadow: 0 0 20px rgba(74,222,128,0.4); }
+/* Alert */
+[data-testid="stAlert"] {
+    background: rgba(74,222,128,0.07) !important;
+    border: 1px solid rgba(74,222,128,0.2) !important;
+    border-radius: 12px !important;
+}
+/* Tab bar */
+[data-testid="stTabs"] [role="tablist"] {
+    border-bottom: 1px solid rgba(74,222,128,0.12) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -290,8 +319,17 @@ def get_treatment(pred_class):
 # ─────────────────────────────────────────────────────────────────────────────
 # UPLOAD
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown('<p style="font-family:\'Playfair Display\',serif;font-size:1.4rem;color:#86efac;margin-bottom:0.3rem;">Upload Leaf Image</p>', unsafe_allow_html=True)
-st.markdown('<p style="font-size:0.8rem;color:#6b9e6b;margin-bottom:0.6rem;letter-spacing:1px;">JPG · JPEG · PNG — clear, well-lit photos give best results</p>', unsafe_allow_html=True)
+st.markdown("""
+<div style="margin-bottom:1.2rem;">
+    <p style="font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;
+       color:#4ade80;margin-bottom:0.3rem;letter-spacing:-0.5px;">
+       📤 Upload Leaf Image
+    </p>
+    <p style="font-size:0.82rem;color:#6b9e6b;letter-spacing:2px;text-transform:uppercase;margin:0;">
+       JPG &nbsp;·&nbsp; JPEG &nbsp;·&nbsp; PNG &nbsp;—&nbsp; clear, well-lit photos give best results
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
