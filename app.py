@@ -363,34 +363,42 @@ if uploaded_file is not None:
             </div>""", unsafe_allow_html=True)
         st.markdown('<div class="info-box">💡 A large gap between 1st and 2nd place indicates a reliable prediction. If values are close, try a clearer image.</div>', unsafe_allow_html=True)
 
-    # ── TAB 3: Grad-CAM ────────────────────────────────────────────────────
+       # ── TAB 3: Grad-CAM ────────────────────────────────────────────────────
     with tab3:
         st.markdown('<div class="sec-head">Model Explanation — Grad-CAM</div>', unsafe_allow_html=True)
         with st.spinner("Generating heatmap..."):
 
             # ── Run original Grad-CAM ──────────────────────────────────────
             heatmap, _ = get_gradcam(img_array, model)
+            
+            # ── Validate heatmap ────────────────────────────────────────────
+            if heatmap is None or heatmap.size == 0 or np.max(heatmap) == 0:
+                st.error("❌ Grad-CAM heatmap generation failed. Try a different image.")
+            else:
+                # ── Render overlay (improved) ───────────────────────────────
+                original = (img_array[0] * 255).astype(np.uint8)
+                
+                # Ensure proper resizing and normalization
+                h = cv2.resize(heatmap, (224, 224), interpolation=cv2.INTER_LINEAR)
+                h = np.clip(h, 0, 1)  # Clip to valid range
+                h = np.uint8(255 * h)
+                
+                h_color = cv2.applyColorMap(h, cv2.COLORMAP_JET)
+                overlay = cv2.addWeighted(original, 0.65, h_color, 0.35, 0)
+                overlay = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
 
-            # ── Render overlay (same as original working code) ─────────────
-            original = (img_array[0] * 255).astype(np.uint8)
-            h = cv2.resize(heatmap, (224, 224))
-            h = np.uint8(255 * h)
-            h_color = cv2.applyColorMap(h, cv2.COLORMAP_JET)
-            overlay = cv2.addWeighted(original, 0.65, h_color, 0.35, 0)
-            overlay = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
+                ca, cb = st.columns(2, gap="large")
+                with ca:
+                    st.image(original, caption="📷 Original Image", use_container_width=True)
+                with cb:
+                    st.image(overlay, caption="🌡️ Grad-CAM — Red = High Model Attention", use_container_width=True)
 
-        ca, cb = st.columns(2, gap="large")
-        with ca:
-            st.image(original, caption="📷 Original Image", use_container_width=True)
-        with cb:
-            st.image(overlay, caption="🌡️ Grad-CAM — Red = High Model Attention", use_container_width=True)
-
-        st.markdown("""
-        <div class="info-box">
-          🔴 <strong style="color:#c4dcc4">Red / Yellow</strong> — Regions the model focused on most.<br>
-          🔵 <strong style="color:#c4dcc4">Blue / Green</strong> — Low-attention background areas.<br>
-          Gradient-weighted Class Activation Mapping (Grad-CAM) makes the AI decision transparent and verifiable.
-        </div>""", unsafe_allow_html=True)
+                st.markdown("""
+                <div class="info-box">
+                  🔴 <strong style="color:#c4dcc4">Red / Yellow</strong> — Regions the model focused on most.<br>
+                  🔵 <strong style="color:#c4dcc4">Blue / Green</strong> — Low-attention background areas.<br>
+                  Gradient-weighted Class Activation Mapping (Grad-CAM) makes the AI decision transparent and verifiable.
+                </div>""", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
