@@ -331,22 +331,60 @@ def load_resources():
 model, class_names = load_resources()
 
 def get_gradcam(img_array, model):
-    base_model = model.layers[1]
-    with tf.GradientTape() as tape:
-        conv_output = base_model(img_array, training=False)
-        tape.watch(conv_output)
-        x = tf.keras.layers.GlobalAveragePooling2D()(conv_output)
-        preds = model.layers[-1](x)
-        pred_index = tf.argmax(preds[0])
-        class_score = preds[:, pred_index]
-    grads = tape.gradient(class_score, conv_output)
-    if grads is None:
-        return np.zeros((7, 7)), int(pred_index)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output[0]), axis=-1)
-    heatmap = tf.nn.relu(heatmap)
-    heatmap /= tf.reduce_max(heatmap) + 1e-8
-    return heatmap.numpy(), int(pred_index)
+    """
+    Robust Grad-CAM for MobileNetV2-based transfer learning model.
+    Strategy: build a sub-model that outputs (last_conv_feature_map, final_predictions),
+    then differentiate predictions w.r.t. the feature map inside GradientTape.
+    """
+    try:
+        # ── Find the last convolutional layer inside the base MobileNetV2 ──
+        base_model = model.layers[1]           # the MobileNetV2 base
+        last_conv_layer = None
+        for layer in reversed(base_model.layers):
+            if isinstance(layer, tf.keras.layers.Conv2D) or \
+               'conv' in layer.name.lower() or \
+               isinstance(layer, tf.keras.layers.DepthwiseConv2D):
+                last_conv_layer = layer
+                break
+
+        if last_conv_layer is None:
+            # fallback: use the whole base_model output
+            last_conv_layer = base_model.layers[-1]
+
+        # ── Build a model that outputs [conv_features, predictions] ──
+        grad_model = tf.keras.models.Model(
+            inputs=model.inputs,
+            outputs=[last_conv_layer.output, model.output]
+        )
+
+        img_tensor = tf.cast(img_array, tf.float32)
+
+        with tf.GradientTape() as tape:
+            conv_outputs, predictions = grad_model(img_tensor, training=False)
+            tape.watch(conv_outputs)
+            pred_index = tf.argmax(predictions[0])
+            class_score = predictions[:, pred_index]
+
+        grads = tape.gradient(class_score, conv_outputs)
+
+        if grads is None:
+            st.warning("⚠️ Grad-CAM: gradients are None — check model graph.")
+            return np.zeros((7, 7)), int(pred_index)
+
+        # ── Pool gradients across spatial dims, weight feature map ──
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        conv_out = conv_outputs[0]                        # (H, W, C)
+        heatmap = tf.reduce_sum(conv_out * pooled_grads, axis=-1)
+        heatmap = tf.nn.relu(heatmap)
+        max_val = tf.reduce_max(heatmap)
+        if max_val == 0:
+            return np.zeros(heatmap.shape), int(pred_index)
+        heatmap = heatmap / (max_val + 1e-8)
+        return heatmap.numpy(), int(pred_index)
+
+    except Exception as e:
+        st.warning(f"⚠️ Grad-CAM generation failed: {e}")
+        return np.zeros((7, 7)), 0
 
 def get_severity(confidence, pred_class):
     if "healthy" in pred_class.lower(): return "LOW", "sev-low"
