@@ -332,60 +332,39 @@ model, class_names = load_resources()
 
 def get_gradcam(img_array, model):
     """
-    Grad-CAM for MobileNetV2 transfer learning.
-    Exact same approach as the original working code:
-    - Run base_model inside tape, watch its output tensor
-    - Manually pass through GAP + Dense inside the tape
-    - Compute gradients of class score w.r.t. conv_output
+    Grad-CAM using persistent tape + tf.Variable to guarantee gradient flow.
+    Converting img_array to tf.Variable forces TF to track operations through it.
     """
-    base_model = model.layers[1]   # MobileNetV2 base
+    base_model = model.layers[1]
 
-    with tf.GradientTape() as tape:
-        conv_output = base_model(img_array, training=False)
+    # Convert to tf.Variable — this is the key trick that guarantees grad flow
+    img_var = tf.Variable(tf.cast(img_array, tf.float32))
+
+    with tf.GradientTape(persistent=True) as tape:
+        tape.watch(img_var)
+        conv_output = base_model(img_var, training=False)
         tape.watch(conv_output)
-
-        # Replicate GAP + Dense exactly as in original
         x = tf.keras.layers.GlobalAveragePooling2D()(conv_output)
-        preds = model.layers[-1](x)   # final Dense layer
-
-        pred_index = tf.argmax(preds[0])
+        preds = model.layers[-1](x)
+        pred_index = int(tf.argmax(preds[0]))
         class_score = preds[:, pred_index]
 
     grads = tape.gradient(class_score, conv_output)
+    del tape
 
     if grads is None:
-        st.warning("⚠️ Grad-CAM: grads are None. Check model.layers[-1] is a Dense layer.")
-        return np.zeros((7, 7)), int(pred_index)
-
-    # Check for zero/flat gradients
-    grad_max = tf.reduce_max(tf.abs(grads)).numpy()
-    if grad_max < 1e-10:
-        # Fallback: try every Dense layer from the end until we get non-zero grads
-        for layer_idx in range(-1, -len(model.layers)-1, -1):
-            try:
-                with tf.GradientTape() as tape2:
-                    co2 = base_model(img_array, training=False)
-                    tape2.watch(co2)
-                    x2 = tf.keras.layers.GlobalAveragePooling2D()(co2)
-                    p2 = model.layers[layer_idx](x2)
-                    ps2 = p2[:, tf.argmax(p2[0])]
-                g2 = tape2.gradient(ps2, co2)
-                if g2 is not None and tf.reduce_max(tf.abs(g2)).numpy() > 1e-10:
-                    grads = g2
-                    conv_output = co2
-                    break
-            except Exception:
-                continue
+        st.warning("⚠️ Grad-CAM: grads are None.")
+        return np.zeros((7, 7)), pred_index
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_output[0]), axis=-1)
     heatmap = tf.nn.relu(heatmap)
     max_val = tf.reduce_max(heatmap)
     if max_val == 0:
-        return np.zeros(heatmap.shape), int(pred_index)
-    heatmap /= max_val + 1e-8
+        return np.zeros(heatmap.shape), pred_index
+    heatmap = heatmap / (max_val + 1e-8)
+    return heatmap.numpy(), pred_index
 
-    return heatmap.numpy(), int(pred_index)
 
 def get_severity(confidence, pred_class):
     if "healthy" in pred_class.lower(): return "LOW", "sev-low"
@@ -503,11 +482,16 @@ if uploaded_file is not None:
         with st.spinner("Generating heatmap..."):
             heatmap, _ = get_gradcam(img_array, model)
             original = (img_array[0] * 255).astype(np.uint8)
-            h = cv2.resize(heatmap, (224, 224))
+            # Ensure original is RGB uint8
+            if original.shape[-1] == 3:
+                original_bgr = cv2.cvtColor(original, cv2.COLOR_RGB2BGR)
+            else:
+                original_bgr = original
+            h = cv2.resize(heatmap.astype(np.float32), (224, 224))
             h = np.uint8(255 * h)
-            h_color = cv2.applyColorMap(h, cv2.COLORMAP_JET)
-            overlay = cv2.addWeighted(original, 0.65, h_color, 0.35, 0)
-            overlay = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
+            h_color = cv2.applyColorMap(h, cv2.COLORMAP_JET)   # BGR
+            overlay = cv2.addWeighted(original_bgr, 0.65, h_color, 0.35, 0)
+            overlay = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)  # back to RGB for st.image
 
         ca, cb = st.columns(2, gap="large")
         with ca:
