@@ -330,48 +330,55 @@ def load_resources():
 
 model, class_names = load_resources()
 
-def get_gradcam(img_array, model, last_conv_layer_name=None):
+def get_gradcam(img_array, model):
     """
-    Robust Grad-CAM that works for most Keras models.
+    Grad-CAM that works even with nested models (MobileNet, Sequential, etc.)
     """
 
-    # 1. Automatically find last Conv2D layer if not given
-    if last_conv_layer_name is None:
-        for layer in reversed(model.layers):
-            if isinstance(layer, tf.keras.layers.Conv2D):
-                last_conv_layer_name = layer.name
-                break
+    # 🔍 Step 1: Find last Conv2D layer (even inside nested models)
+    last_conv_layer = None
 
-    if last_conv_layer_name is None:
-        st.error("❌ No Conv2D layer found in model.")
+    for layer in reversed(model.layers):
+        if isinstance(layer, tf.keras.Model):  # nested model
+            for sub_layer in reversed(layer.layers):
+                if isinstance(sub_layer, tf.keras.layers.Conv2D):
+                    last_conv_layer = sub_layer
+                    break
+        if isinstance(layer, tf.keras.layers.Conv2D):
+            last_conv_layer = layer
+            break
+        if last_conv_layer is not None:
+            break
+
+    if last_conv_layer is None:
+        st.error("❌ No Conv2D layer found anywhere in model")
         return np.zeros((224, 224)), 0
 
-    # 2. Create Grad-CAM model
+    # 🧠 Step 2: Build grad model
     grad_model = tf.keras.models.Model(
-        [model.inputs],
-        [model.get_layer(last_conv_layer_name).output, model.output]
+        inputs=model.input,
+        outputs=[last_conv_layer.output, model.output]
     )
 
-    # 3. Compute gradients
+    # ⚡ Step 3: Gradient computation
     with tf.GradientTape() as tape:
         inputs = tf.cast(img_array, tf.float32)
         conv_outputs, predictions = grad_model(inputs)
 
         pred_index = tf.argmax(predictions[0])
-        class_channel = predictions[:, pred_index]
+        loss = predictions[:, pred_index]
 
-    grads = tape.gradient(class_channel, conv_outputs)
+    grads = tape.gradient(loss, conv_outputs)
 
     if grads is None:
-        st.error("❌ Gradients are None — check model structure.")
+        st.error("❌ Gradients are STILL None → Model is blocking gradient flow")
         return np.zeros((224, 224)), int(pred_index)
 
-    # 4. Compute heatmap
+    # 🎯 Step 4: Heatmap
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
     conv_outputs = conv_outputs[0]
-    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
 
+    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
     heatmap = tf.nn.relu(heatmap)
     heatmap /= tf.reduce_max(heatmap) + 1e-8
 
