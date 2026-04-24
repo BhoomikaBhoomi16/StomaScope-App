@@ -245,6 +245,15 @@ def get_gradcam(img_array, model):
     # Compute gradients
     grads = tape.gradient(class_score, conv_output)
 
+    # ── Debug info shown in sidebar ──
+    with st.sidebar:
+        st.markdown("**Grad-CAM Debug**")
+        st.write("grads is None:", grads is None)
+        if grads is not None:
+            g_max = float(tf.reduce_max(tf.abs(grads)).numpy())
+            st.write(f"grad max abs: {g_max:.6f}")
+            st.write(f"conv_output shape: {conv_output.shape}")
+
     if grads is None:
         st.warning("⚠️ Could not generate Grad-CAM heatmap")
         return np.zeros((7, 7)), int(pred_index)
