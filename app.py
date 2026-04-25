@@ -42,18 +42,18 @@ html, body, [data-testid="stAppViewContainer"] {
 .hero-title {
     font-family: 'Playfair Display', serif;
     font-size: 4rem; font-weight: 900;
-    background: linear-gradient(135deg, #ffffff 0%, #a5c8ff 45%, #63b3ff 100%);
+    background: linear-gradient(135deg, #4ade80 0%, #86efac 50%, #bbf7d0 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     text-align: center; letter-spacing: -2px; margin-bottom: 0.3rem;
-    filter: drop-shadow(0 0 30px rgba(99,179,255,0.3));
+    filter: drop-shadow(0 0 30px rgba(74,222,128,0.35));
 }
 .hero-sub {
     text-align:center; font-size:0.85rem; letter-spacing:4px;
-    text-transform:uppercase; color:#7a9abf;
+    text-transform:uppercase; color:#6b9e6b;
 }
 .hero-line {
     width:80px; height:2px; margin:1rem auto 2rem;
-    background:linear-gradient(90deg,transparent,#63b3ff,transparent);
+    background:linear-gradient(90deg,transparent,#4ade80,transparent);
 }
 
 /* ── SECTION HEADERS ── */
@@ -188,6 +188,19 @@ html, body, [data-testid="stAppViewContainer"] {
 .footer {
     text-align:center; padding:2rem 0 1rem;
     color:#2a3a5a; font-size:0.75rem; letter-spacing:2px; text-transform:uppercase;
+}
+
+/* ── MODE RADIO BUTTONS ── */
+[data-testid="stRadio"] label {
+    color: #7a9abf !important;
+    font-size: 0.82rem !important;
+    letter-spacing: 1px !important;
+}
+[data-testid="stRadio"] label:hover {
+    color: #a5c8ff !important;
+}
+[data-testid="stRadio"] [data-baseweb="radio"] div {
+    border-color: #4a6a8a !important;
 }
 
 /* ── SCROLLBAR ── */
