@@ -235,6 +235,71 @@ def render_gradcam(img_array):
     return original, overlay
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LEAF ISOLATION — Remove background from camera images
+# ─────────────────────────────────────────────────────────────────────────────
+def isolate_leaf(pil_img):
+    """
+    Isolates the leaf from background using HSV green/yellow masking + GrabCut.
+    Returns a PIL Image with background replaced by black (same as training data).
+    """
+    img_rgb  = np.array(pil_img.convert("RGB"))
+    img_bgr  = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+    h, w     = img_bgr.shape[:2]
+
+    # ── Step 1: HSV mask — keep green/yellow-green leaf tones ──
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    # Green range
+    mask_g = cv2.inRange(hsv, np.array([25, 30, 30]), np.array([95, 255, 255]))
+    # Yellow-brown range (diseased areas)
+    mask_y = cv2.inRange(hsv, np.array([10, 20, 40]), np.array([30, 255, 255]))
+    mask   = cv2.bitwise_or(mask_g, mask_y)
+
+    # ── Step 2: Morphology — fill holes, remove noise ──
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    mask   = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=3)
+    mask   = cv2.morphologyEx(mask, cv2.MORPH_OPEN,  kernel, iterations=2)
+
+    # ── Step 3: Find largest contour (the leaf) ──
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        largest = max(contours, key=cv2.contourArea)
+        clean_mask = np.zeros((h, w), np.uint8)
+        cv2.drawContours(clean_mask, [largest], -1, 255, -1)
+
+        # ── Step 4: GrabCut refinement using the contour bounding box ──
+        x, y, bw, bh = cv2.boundingRect(largest)
+        # Add padding
+        pad = 10
+        x, y = max(0, x-pad), max(0, y-pad)
+        bw, bh = min(w-x, bw+2*pad), min(h-y, bh+2*pad)
+
+        gc_mask  = np.where(clean_mask > 0,
+                            cv2.GC_PR_FGD, cv2.GC_PR_BGD).astype(np.uint8)
+        bgd_model = np.zeros((1, 65), np.float64)
+        fgd_model = np.zeros((1, 65), np.float64)
+        try:
+            cv2.grabCut(img_bgr, gc_mask, (x, y, bw, bh),
+                        bgd_model, fgd_model, 3, cv2.GC_INIT_WITH_MASK)
+            final_mask = np.where(
+                (gc_mask == cv2.GC_FGD) | (gc_mask == cv2.GC_PR_FGD), 255, 0
+            ).astype(np.uint8)
+        except Exception:
+            final_mask = clean_mask
+    else:
+        # Fallback: use centre crop if no green contour found
+        final_mask = np.zeros((h, w), np.uint8)
+        cx, cy = w//2, h//2
+        r = min(cx, cy) - 20
+        cv2.circle(final_mask, (cx, cy), r, 255, -1)
+
+    # ── Step 5: Apply mask — black background ──
+    result = img_bgr.copy()
+    result[final_mask == 0] = [0, 0, 0]
+    result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(result_rgb), final_mask
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -616,59 +681,91 @@ elif mode == "📷 Camera":
         <p style="font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;
            color:#4ade80;margin-bottom:0.3rem;">📷 Camera Capture</p>
         <p style="font-size:0.82rem;color:#6b9e6b;letter-spacing:2px;text-transform:uppercase;margin:0;">
-           Take a photo directly — point camera at the affected leaf
+           Point camera at a leaf — background is automatically removed before prediction
         </p>
+    </div>""", unsafe_allow_html=True)
+
+    # Tips box
+    st.markdown("""
+    <div class="info-box" style="margin-bottom:1.2rem;">
+        📌 <strong style="color:#c4dcc4">Tips for best results:</strong><br>
+        &nbsp;&nbsp;• Hold the leaf against a <strong style="color:#4ade80">plain background</strong> (white paper / dark cloth)<br>
+        &nbsp;&nbsp;• Ensure <strong style="color:#4ade80">good lighting</strong> — natural daylight is best<br>
+        &nbsp;&nbsp;• Fill the frame with the leaf as much as possible<br>
+        &nbsp;&nbsp;• The system will <strong style="color:#4ade80">auto-remove the background</strong> before prediction
     </div>""", unsafe_allow_html=True)
 
     camera_img = st.camera_input("")
 
     if camera_img is not None:
-        img_pil = Image.open(camera_img).convert("RGB")
-        pred_class, confidence, top3, img_array = predict_single(img_pil)
-        sev_label, sev_cls = get_severity(confidence, pred_class)
+        raw_pil = Image.open(camera_img).convert("RGB")
 
-        log_prediction("camera_capture", pred_class, confidence)
+        with st.spinner("🍃 Isolating leaf from background..."):
+            isolated_pil, leaf_mask = isolate_leaf(raw_pil)
 
-        if confidence < 50:
+        # Show before / after isolation
+        st.markdown('<div class="sec-head">Background Removal Preview</div>', unsafe_allow_html=True)
+        pr1, pr2 = st.columns(2, gap="large")
+        with pr1:
+            st.image(np.array(raw_pil),      caption="📷 Original Camera Capture", use_container_width=True)
+        with pr2:
+            st.image(np.array(isolated_pil), caption="🍃 Leaf Isolated (used for prediction)", use_container_width=True)
+
+        # Check if leaf was actually detected
+        leaf_area = float(np.sum(leaf_mask > 0)) / leaf_mask.size
+        if leaf_area < 0.05:
             st.markdown("""<div class="warn-box">
-                ⚠️ <strong>Low Confidence</strong> — Try better lighting and hold the camera steady.
+                ⚠️ <strong>No leaf detected</strong> — The leaf could not be isolated from the background.
+                Try placing the leaf on a contrasting background (white paper works best) and retake the photo.
             </div>""", unsafe_allow_html=True)
         else:
-            st.success("✅ Prediction complete!")
+            # Run prediction on isolated leaf
+            pred_class, confidence, top3, img_array = predict_single(isolated_pil)
+            sev_label, sev_cls = get_severity(confidence, pred_class)
+            log_prediction("camera_capture", pred_class, confidence)
 
-        col1, col2, col3 = st.columns(3, gap="medium")
-        with col1:
-            st.markdown(f"""<div class="card card-g">
-                <div class="c-icon">🦠</div>
-                <div class="c-lbl">Predicted Disease</div>
-                <div class="c-val">{pred_class.replace('_',' ')}</div>
-                <div class="conf-wrap">
-                    <div class="conf-row"><span>Confidence</span><span>{confidence:.1f}%</span></div>
-                    <div class="conf-bg"><div class="conf-fill" style="width:{confidence:.1f}%"></div></div>
-                </div>
-                <span class="badge {sev_cls}">⚠ {sev_label} Severity</span>
-            </div>""", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""<div class="card card-o">
-                <div class="c-icon">🔬</div><div class="c-lbl">Root Cause</div>
-                <div class="c-val">Pathogen Analysis</div>
-                <div class="c-txt">{get_cause(pred_class)}</div>
-            </div>""", unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""<div class="card card-b">
-                <div class="c-icon">💊</div><div class="c-lbl">Recommended Treatment</div>
-                <div class="c-val">Action Plan</div>
-                <div class="c-txt">{get_treatment(pred_class)}</div>
-            </div>""", unsafe_allow_html=True)
+            if confidence < 50:
+                st.markdown("""<div class="warn-box">
+                    ⚠️ <strong>Low Confidence ({:.1f}%)</strong> — Prediction may not be reliable.
+                    Try better lighting or a plainer background.
+                </div>""".format(confidence), unsafe_allow_html=True)
+            else:
+                st.success(f"✅ Leaf detected ({leaf_area*100:.0f}% of frame) — Prediction complete!")
 
-        st.markdown('<div class="sec-head" style="margin-top:1.5rem;">Grad-CAM</div>', unsafe_allow_html=True)
-        with st.spinner("Generating heatmap..."):
-            original, overlay = render_gradcam(img_array)
-        ca, cb = st.columns(2, gap="large")
-        with ca:
-            st.image(original, caption="📷 Captured Image", use_container_width=True)
-        with cb:
-            st.image(overlay, caption="🌡️ Grad-CAM Heatmap", use_container_width=True)
+            st.markdown('<div class="sec-head">Diagnosis</div>', unsafe_allow_html=True)
+            col1, col2, col3 = st.columns(3, gap="medium")
+            with col1:
+                st.markdown(f"""<div class="card card-g">
+                    <div class="c-icon">🦠</div>
+                    <div class="c-lbl">Predicted Disease</div>
+                    <div class="c-val">{pred_class.replace("_"," ")}</div>
+                    <div class="conf-wrap">
+                        <div class="conf-row"><span>Confidence</span><span>{confidence:.1f}%</span></div>
+                        <div class="conf-bg"><div class="conf-fill" style="width:{confidence:.1f}%"></div></div>
+                    </div>
+                    <span class="badge {sev_cls}">⚠ {sev_label} Severity</span>
+                </div>""", unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""<div class="card card-o">
+                    <div class="c-icon">🔬</div><div class="c-lbl">Root Cause</div>
+                    <div class="c-val">Pathogen Analysis</div>
+                    <div class="c-txt">{get_cause(pred_class)}</div>
+                </div>""", unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"""<div class="card card-b">
+                    <div class="c-icon">💊</div><div class="c-lbl">Recommended Treatment</div>
+                    <div class="c-val">Action Plan</div>
+                    <div class="c-txt">{get_treatment(pred_class)}</div>
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown('<div class="sec-head" style="margin-top:1.5rem;">Grad-CAM</div>', unsafe_allow_html=True)
+            with st.spinner("Generating heatmap..."):
+                original, overlay = render_gradcam(img_array)
+            ca, cb = st.columns(2, gap="large")
+            with ca:
+                st.image(original, caption="🍃 Isolated Leaf",      use_container_width=True)
+            with cb:
+                st.image(overlay,  caption="🌡️ Grad-CAM Heatmap", use_container_width=True)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
