@@ -20,84 +20,179 @@ st.set_page_config(page_title="StomaScope", page_icon="🌿", layout="wide")
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* ── BASE ── */
 html, body, [data-testid="stAppViewContainer"] {
-    background: #0a0f0a !important; color: #e8f0e8 !important;
+    background: #060810 !important;
+    color: #f0f4ff !important;
     font-family: 'DM Sans', sans-serif !important;
 }
 [data-testid="stAppViewContainer"] {
-    background: radial-gradient(ellipse at 20% 20%, #0d1f0d 0%, #050a05 60%, #0a0f0a 100%) !important;
+    background: radial-gradient(ellipse at 15% 10%, #0d1230 0%, #060810 55%, #080c1a 100%) !important;
 }
+
+/* ── SIDEBAR ── */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #070d07, #0a0f0a) !important;
-    border-right: 1px solid rgba(74,222,128,0.1) !important;
+    background: linear-gradient(180deg, #0a0e1f, #060810) !important;
+    border-right: 1px solid rgba(99,179,255,0.12) !important;
 }
-[data-testid="stSidebar"] * { color: #c4dcc4 !important; }
+[data-testid="stSidebar"] * { color: #c8d8f0 !important; }
+
+/* ── HERO ── */
 .hero-title {
-    font-family: 'Playfair Display', serif; font-size: 4rem; font-weight: 900;
-    background: linear-gradient(135deg, #4ade80 0%, #86efac 50%, #bbf7d0 100%);
+    font-family: 'Playfair Display', serif;
+    font-size: 4rem; font-weight: 900;
+    background: linear-gradient(135deg, #ffffff 0%, #a5c8ff 45%, #63b3ff 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     text-align: center; letter-spacing: -2px; margin-bottom: 0.3rem;
+    filter: drop-shadow(0 0 30px rgba(99,179,255,0.3));
 }
-.hero-sub { text-align:center; font-size:0.85rem; letter-spacing:4px; text-transform:uppercase; color:#6b9e6b; }
-.hero-line { width:80px; height:2px; margin:1rem auto 2rem; background:linear-gradient(90deg,transparent,#4ade80,transparent); }
+.hero-sub {
+    text-align:center; font-size:0.85rem; letter-spacing:4px;
+    text-transform:uppercase; color:#7a9abf;
+}
+.hero-line {
+    width:80px; height:2px; margin:1rem auto 2rem;
+    background:linear-gradient(90deg,transparent,#63b3ff,transparent);
+}
+
+/* ── SECTION HEADERS ── */
 .sec-head {
-    font-family:'Playfair Display',serif; font-size:1.4rem; color:#86efac;
+    font-family:'Playfair Display',serif; font-size:1.4rem; color:#ffffff;
     margin:1.8rem 0 1rem; display:flex; align-items:center; gap:10px;
+    text-shadow: 0 0 20px rgba(99,179,255,0.4);
 }
-.sec-head::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(74,222,128,0.25),transparent); }
+.sec-head::after {
+    content:''; flex:1; height:1px;
+    background:linear-gradient(90deg,rgba(99,179,255,0.3),transparent);
+}
+
+/* ── CARDS ── */
 .card {
-    background:linear-gradient(145deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));
-    border:1px solid rgba(74,222,128,0.15); border-radius:18px;
-    padding:1.6rem; position:relative; overflow:hidden; height:100%;
-    transition:all 0.25s ease;
+    background: linear-gradient(145deg, rgba(99,179,255,0.06), rgba(99,179,255,0.01));
+    border: 1px solid rgba(99,179,255,0.18);
+    border-radius:18px; padding:1.6rem; position:relative;
+    overflow:hidden; height:100%; transition:all 0.25s ease;
 }
-.card:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.35) !important; }
+.card:hover {
+    transform:translateY(-4px);
+    box-shadow: 0 8px 35px rgba(99,179,255,0.15);
+    border-color: rgba(99,179,255,0.45) !important;
+}
 .card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:18px 18px 0 0; }
-.card-g::before { background:linear-gradient(90deg,#4ade80,#22c55e); }
-.card-o::before { background:linear-gradient(90deg,#fb923c,#f97316); }
-.card-b::before { background:linear-gradient(90deg,#38bdf8,#0ea5e9); }
-.card-p::before { background:linear-gradient(90deg,#a78bfa,#8b5cf6); }
+.card-g::before { background: linear-gradient(90deg, #63b3ff, #a5c8ff); }
+.card-o::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.card-b::before { background: linear-gradient(90deg, #c084fc, #a855f7); }
+.card-p::before { background: linear-gradient(90deg, #34d399, #10b981); }
+
+/* ── CARD CONTENT ── */
 .c-icon { font-size:1.8rem; margin-bottom:0.6rem; }
-.c-lbl { font-size:0.68rem; letter-spacing:3px; text-transform:uppercase; color:#6b9e6b; margin-bottom:0.3rem; }
-.c-val { font-family:'Playfair Display',serif; font-size:1.3rem; color:#e8f0e8; margin-bottom:0.6rem; }
-.c-txt { font-size:0.85rem; color:#9cb89c; line-height:1.6; }
+.c-lbl  { font-size:0.68rem; letter-spacing:3px; text-transform:uppercase; color:#6b8aaa; margin-bottom:0.3rem; font-weight:500; }
+.c-val  { font-family:'Playfair Display',serif; font-size:1.3rem; color:#ffffff; margin-bottom:0.6rem; }
+.c-txt  { font-size:0.85rem; color:#a0b8d0; line-height:1.6; }
+
+/* ── CONFIDENCE BAR ── */
 .conf-wrap { margin-top:0.8rem; }
-.conf-row { display:flex; justify-content:space-between; font-size:0.75rem; color:#6b9e6b; margin-bottom:0.3rem; }
-.conf-bg { background:rgba(255,255,255,0.06); border-radius:999px; height:7px; overflow:hidden; }
-.conf-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#4ade80,#86efac); }
-.badge { display:inline-block; padding:0.25rem 0.9rem; border-radius:999px; font-size:0.68rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; margin-top:0.6rem; }
-.sev-l { background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.3); }
-.sev-m { background:rgba(251,146,60,0.15); color:#fb923c; border:1px solid rgba(251,146,60,0.3); }
-.sev-h { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
+.conf-row  { display:flex; justify-content:space-between; font-size:0.75rem; color:#7a9abf; margin-bottom:0.3rem; }
+.conf-bg   { background:rgba(255,255,255,0.06); border-radius:999px; height:7px; overflow:hidden; }
+.conf-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#63b3ff,#ffffff); }
+
+/* ── SEVERITY BADGES ── */
+.badge { display:inline-block; padding:0.25rem 0.9rem; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-top:0.6rem; }
+.sev-l { background:rgba(52,211,153,0.15); color:#34d399; border:1px solid rgba(52,211,153,0.4); }
+.sev-m { background:rgba(251,191,36,0.15); color:#fbbf24; border:1px solid rgba(251,191,36,0.4); }
+.sev-h { background:rgba(248,113,113,0.15); color:#f87171; border:1px solid rgba(248,113,113,0.4); }
+
+/* ── TOP-3 BARS ── */
 .t3row { display:flex; align-items:center; gap:10px; margin-bottom:0.8rem; }
-.t3nm  { font-size:0.8rem; color:#c4dcc4; width:210px; flex-shrink:0; }
+.t3nm  { font-size:0.8rem; color:#c8d8f0; width:210px; flex-shrink:0; }
 .t3bg  { flex:1; background:rgba(255,255,255,0.06); border-radius:999px; height:6px; overflow:hidden; }
 .t3bar { height:100%; border-radius:999px; }
-.t3pc  { font-size:0.75rem; color:#6b9e6b; width:42px; text-align:right; flex-shrink:0; }
-.stat-card { background:linear-gradient(145deg,rgba(74,222,128,0.06),rgba(74,222,128,0.01)); border:1px solid rgba(74,222,128,0.15); border-radius:14px; padding:0.9rem 1rem; text-align:center; margin-bottom:0.5rem; }
-.stat-n { font-family:'Playfair Display',serif; font-size:2rem; color:#4ade80; line-height:1; text-shadow:0 0 20px rgba(74,222,128,0.4); }
-.stat-l { font-size:0.65rem; letter-spacing:2px; text-transform:uppercase; color:#6b9e6b; margin-top:0.2rem; }
-.info-box { background:rgba(74,222,128,0.04); border:1px solid rgba(74,222,128,0.1); border-radius:11px; padding:0.9rem 1.1rem; font-size:0.8rem; color:#6b9e6b; line-height:1.7; margin-top:1rem; }
-.warn-box { background:rgba(251,146,60,0.07); border:1px solid rgba(251,146,60,0.25); border-radius:11px; padding:0.9rem 1.1rem; font-size:0.85rem; color:#fb923c; line-height:1.6; margin:1rem 0; }
-.disease-info { background:rgba(74,222,128,0.03); border:1px solid rgba(74,222,128,0.1); border-radius:14px; padding:1.2rem 1.4rem; margin-top:1rem; }
-.di-title { font-family:'Playfair Display',serif; font-size:1.1rem; color:#86efac; margin-bottom:0.6rem; }
-.di-row { display:flex; gap:8px; margin-bottom:0.4rem; font-size:0.82rem; color:#9cb89c; }
-.di-tag { background:rgba(74,222,128,0.1); border-radius:6px; padding:0.15rem 0.6rem; font-size:0.72rem; color:#4ade80; margin-right:4px; display:inline-block; margin-bottom:4px; }
-.batch-row { background:rgba(255,255,255,0.02); border:1px solid rgba(74,222,128,0.1); border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:12px; }
-[data-testid="stTabs"] button { color:#6b9e6b !important; font-size:0.82rem !important; }
-[data-testid="stTabs"] button[aria-selected="true"] { color:#4ade80 !important; border-bottom-color:#4ade80 !important; }
-[data-testid="stButton"] button { background:rgba(74,222,128,0.08) !important; border:1px solid rgba(74,222,128,0.25) !important; color:#4ade80 !important; border-radius:9px !important; }
-[data-testid="stDownloadButton"] button { background:linear-gradient(135deg,#4ade80,#22c55e) !important; color:#0a0f0a !important; border:none !important; font-weight:600 !important; border-radius:9px !important; }
-[data-testid="stFileUploader"] { background:rgba(74,222,128,0.03) !important; border-radius:16px !important; }
-[data-testid="stAlert"] { background:rgba(74,222,128,0.07) !important; border:1px solid rgba(74,222,128,0.2) !important; border-radius:12px !important; }
+.t3pc  { font-size:0.75rem; color:#7a9abf; width:42px; text-align:right; flex-shrink:0; }
+
+/* ── STAT CARDS ── */
+.stat-card {
+    background: linear-gradient(145deg, rgba(99,179,255,0.08), rgba(99,179,255,0.02));
+    border: 1px solid rgba(99,179,255,0.18);
+    border-radius:14px; padding:0.9rem 1rem; text-align:center; margin-bottom:0.5rem;
+}
+.stat-n {
+    font-family:'Playfair Display',serif; font-size:2rem;
+    color:#ffffff; line-height:1;
+    text-shadow: 0 0 25px rgba(99,179,255,0.6);
+}
+.stat-l { font-size:0.65rem; letter-spacing:2px; text-transform:uppercase; color:#7a9abf; margin-top:0.2rem; }
+
+/* ── INFO / WARN BOXES ── */
+.info-box {
+    background: rgba(99,179,255,0.05); border:1px solid rgba(99,179,255,0.15);
+    border-radius:11px; padding:0.9rem 1.1rem; font-size:0.8rem;
+    color:#a0b8d0; line-height:1.7; margin-top:1rem;
+}
+.warn-box {
+    background: rgba(251,191,36,0.07); border:1px solid rgba(251,191,36,0.3);
+    border-radius:11px; padding:0.9rem 1.1rem; font-size:0.85rem;
+    color:#fbbf24; line-height:1.6; margin:1rem 0;
+}
+.disease-info {
+    background: rgba(99,179,255,0.04); border:1px solid rgba(99,179,255,0.12);
+    border-radius:14px; padding:1.2rem 1.4rem; margin-top:1rem;
+}
+.di-title { font-family:'Playfair Display',serif; font-size:1.1rem; color:#a5c8ff; margin-bottom:0.6rem; }
+.di-row   { display:flex; gap:8px; margin-bottom:0.4rem; font-size:0.82rem; color:#a0b8d0; }
+.di-tag   { background:rgba(99,179,255,0.12); border-radius:6px; padding:0.15rem 0.6rem; font-size:0.72rem; color:#63b3ff; margin-right:4px; display:inline-block; margin-bottom:4px; }
+.batch-row { background:rgba(255,255,255,0.02); border:1px solid rgba(99,179,255,0.1); border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:12px; }
+
+/* ── TABS ── */
+[data-testid="stTabs"] button { color:#7a9abf !important; font-size:0.82rem !important; }
+[data-testid="stTabs"] button[aria-selected="true"] {
+    color:#ffffff !important;
+    border-bottom-color:#63b3ff !important;
+    text-shadow: 0 0 12px rgba(99,179,255,0.5);
+}
+
+/* ── BUTTONS ── */
+[data-testid="stButton"] button {
+    background: rgba(99,179,255,0.08) !important;
+    border: 1px solid rgba(99,179,255,0.3) !important;
+    color: #a5c8ff !important; border-radius:9px !important;
+}
+[data-testid="stButton"] button:hover {
+    background: rgba(99,179,255,0.15) !important;
+    border-color: rgba(99,179,255,0.5) !important;
+}
+[data-testid="stDownloadButton"] button {
+    background: linear-gradient(135deg, #63b3ff, #3b82f6) !important;
+    color: #ffffff !important; border:none !important;
+    font-weight:700 !important; border-radius:9px !important;
+    box-shadow: 0 4px 15px rgba(99,179,255,0.3) !important;
+}
+
+/* ── FILE UPLOADER ── */
+[data-testid="stFileUploader"] {
+    background: rgba(99,179,255,0.03) !important; border-radius:16px !important;
+}
 @keyframes borderPulse {
-    0%,100% { border-color:rgba(74,222,128,0.25); box-shadow:none; }
-    50%      { border-color:rgba(74,222,128,0.6); box-shadow:0 0 20px rgba(74,222,128,0.12); }
+    0%,100% { border-color:rgba(99,179,255,0.2); box-shadow:none; }
+    50%      { border-color:rgba(99,179,255,0.6); box-shadow:0 0 25px rgba(99,179,255,0.1); }
 }
 [data-testid="stFileUploader"] { animation:borderPulse 3s ease-in-out infinite !important; }
-.footer { text-align:center; padding:2rem 0 1rem; color:#3a5a3a; font-size:0.75rem; letter-spacing:2px; text-transform:uppercase; }
+
+/* ── ALERT ── */
+[data-testid="stAlert"] {
+    background: rgba(99,179,255,0.07) !important;
+    border: 1px solid rgba(99,179,255,0.25) !important; border-radius:12px !important;
+}
+
+/* ── FOOTER ── */
+.footer {
+    text-align:center; padding:2rem 0 1rem;
+    color:#2a3a5a; font-size:0.75rem; letter-spacing:2px; text-transform:uppercase;
+}
+
+/* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:5px; }
-::-webkit-scrollbar-thumb { background:rgba(74,222,128,0.2); border-radius:3px; }
+::-webkit-scrollbar-thumb { background:rgba(99,179,255,0.2); border-radius:3px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -149,7 +244,7 @@ init_db()
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 📋 Prediction Log")
-    st.markdown(f"<small style='color:#3a5a3a'>SQLite · {DB_PATH}</small>", unsafe_allow_html=True)
+    st.markdown(f"<small style='color:#2a3a5a'>SQLite · {DB_PATH}</small>", unsafe_allow_html=True)
     st.divider()
     total, avg_conf, top_disease = fetch_stats()
     c1, c2 = st.columns(2)
@@ -159,7 +254,7 @@ with st.sidebar:
         st.markdown(f'<div class="stat-card"><div class="stat-n">{avg_conf}%</div><div class="stat-l">Avg Conf</div></div>', unsafe_allow_html=True)
     st.markdown(f"""<div class="stat-card" style="text-align:left;">
         <div class="stat-l">Most Detected</div>
-        <div style="font-size:0.88rem;color:#86efac;margin-top:0.2rem;font-weight:500;">
+        <div style="font-size:0.88rem;color:#a5c8ff;margin-top:0.2rem;font-weight:500;">
             {top_disease.replace('_',' ') if top_disease != '—' else '—'}
         </div></div>""", unsafe_allow_html=True)
     st.divider()
@@ -370,7 +465,7 @@ def generate_pdf_report(image_pil, pred_class, confidence, cause, treatment,
     image_pil.save(buf, format="PNG")
     img_b64 = base64.b64encode(buf.getvalue()).decode()
 
-    sev_color = {"LOW": "#4ade80", "MEDIUM": "#fb923c", "HIGH": "#ef4444"}.get(sev_label, "#4ade80")
+    sev_color = {"LOW": "#63b3ff", "MEDIUM": "#fb923c", "HIGH": "#ef4444"}.get(sev_label, "#63b3ff")
 
     html = f"""<!DOCTYPE html>
 <html>
@@ -573,7 +668,7 @@ if mode == "📁 Single Image":
         # ── TAB 2 : Top-3 ─────────────────────────────────────────────────
         with tab2:
             st.markdown('<div class="sec-head">Top 3 Predictions</div>', unsafe_allow_html=True)
-            colors = ["#4ade80","#86efac","#bbf7d0"]
+            colors = ["#63b3ff","#a5c8ff","#dbeafe"]
             medals = ["🥇","🥈","🥉"]
             for i,(name,prob) in enumerate(top3):
                 st.markdown(f"""<div class="t3row">
@@ -597,8 +692,8 @@ if mode == "📁 Single Image":
             with cb:
                 st.image(overlay,  caption="🌡️ Grad-CAM — Red = High Model Attention", use_container_width=True)
             st.markdown("""<div class="info-box">
-                🔴 <strong style="color:#c4dcc4">Red / Yellow</strong> — Regions the model focused on most.<br>
-                🔵 <strong style="color:#c4dcc4">Blue / Green</strong> — Low-attention background areas.<br>
+                🔴 <strong style="color:#e0ecff">Red / Yellow</strong> — Regions the model focused on most.<br>
+                🔵 <strong style="color:#e0ecff">Blue / Green</strong> — Low-attention background areas.<br>
                 Grad-CAM makes the AI's decision transparent and verifiable — a key feature for real-world trust.
             </div>""", unsafe_allow_html=True)
 
@@ -679,7 +774,7 @@ elif mode == "📷 Camera":
     st.markdown("""
     <div style="margin-bottom:1.2rem;">
         <p style="font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;
-           color:#4ade80;margin-bottom:0.3rem;">📷 Camera Capture</p>
+           color:#ffffff;margin-bottom:0.3rem;">📷 Camera Capture</p>
         <p style="font-size:0.82rem;color:#6b9e6b;letter-spacing:2px;text-transform:uppercase;margin:0;">
            Point camera at a leaf — background is automatically removed before prediction
         </p>
@@ -688,7 +783,7 @@ elif mode == "📷 Camera":
     # Tips box
     st.markdown("""
     <div class="info-box" style="margin-bottom:1.2rem;">
-        📌 <strong style="color:#c4dcc4">Tips for best results:</strong><br>
+        📌 <strong style="color:#e0ecff">Tips for best results:</strong><br>
         &nbsp;&nbsp;• Hold the leaf against a <strong style="color:#4ade80">plain background</strong> (white paper / dark cloth)<br>
         &nbsp;&nbsp;• Ensure <strong style="color:#4ade80">good lighting</strong> — natural daylight is best<br>
         &nbsp;&nbsp;• Fill the frame with the leaf as much as possible<br>
@@ -775,7 +870,7 @@ elif mode == "🗂️ Batch Prediction":
     st.markdown("""
     <div style="margin-bottom:1.2rem;">
         <p style="font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;
-           color:#4ade80;margin-bottom:0.3rem;">🗂️ Batch Prediction</p>
+           color:#ffffff;margin-bottom:0.3rem;">🗂️ Batch Prediction</p>
         <p style="font-size:0.82rem;color:#6b9e6b;letter-spacing:2px;text-transform:uppercase;margin:0;">
            Upload multiple leaf images — get predictions for all at once
         </p>
